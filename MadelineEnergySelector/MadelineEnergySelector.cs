@@ -1,4 +1,6 @@
-﻿using Celeste.Mod;
+﻿#pragma warning disable CS1720
+
+using Celeste.Mod;
 using Microsoft.Xna.Framework;
 using MonoMod.Detour;
 using System;
@@ -7,6 +9,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
+using HookedMethod;
 
 namespace Celeste.Mod.Energy {
     public class MadelineEnergySelector : EverestModule {
@@ -17,7 +20,7 @@ namespace Celeste.Mod.Energy {
         public static MadelineEnergySelectorSettings Settings => (MadelineEnergySelectorSettings) Instance._Settings;
 
         // The methods we want to hook.
-        private readonly static MethodInfo m_Update = typeof(Player).GetMethod("Update", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+        private readonly static MethodInfoWithDef m_Update = MethodInfoWithDef.FromCall(() => default(Player).Update());
         
         public MadelineEnergySelector() {
             Instance = this;
@@ -25,9 +28,9 @@ namespace Celeste.Mod.Energy {
 
         public override void Load() {
             // Runtime hooks are quite different from static patches.
-            Type t_MadelineExcitementSelector = GetType();
+            Type t_MadelineEnergySelector = GetType();
             // [trampoline] = [method we want to hook] .Detour< [signature] >( [replacement method] );
-            orig_Update = m_Update.Detour<d_Update>(t_MadelineExcitementSelector.GetMethod("Update"));
+            orig_Update = ((MethodInfo) m_Update).Detour<d_Update>(t_MadelineEnergySelector.GetMethod("Update"));
         }
 
         public override void Unload() {
@@ -44,8 +47,10 @@ namespace Celeste.Mod.Energy {
 
         private static Vector2? accelerationHelper = null;
 
-        public static void Update(Player self)
+        public static void Update(Hook hook, Hook.OriginalMethod orig, Hook.Parameters args)
         {
+            var self = args.As<Player>();
+
             orig_Update(self);
             
             if (!accelerationHelper.HasValue)
